@@ -52,24 +52,37 @@ class HAClient {
     }));
   }
 
-  normalizeView(view) {
+  normalizeView(view, existingViews = []) {
     if (!view || typeof view !== 'object') {
-      throw new Error('La vue fournie est invalide');
+      throw new Error('La vue doit être un objet non nul');
     }
 
     const title = typeof view.title === 'string' ? view.title.trim() : '';
     if (!title) {
-      throw new Error('Le titre de la vue est obligatoire');
+      throw new Error('Le titre de la vue est obligatoire et doit être une chaîne non vide');
     }
 
-    const path = typeof view.path === 'string' && view.path.trim()
+    const basePath = (typeof view.path === 'string' && view.path.trim()
       ? view.path.trim()
       : title
         .toLowerCase()
         .normalize('NFD')
         .replace(/[\u0300-\u036f]/g, '')
         .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-+|-+$/g, '') || 'view';
+        .replace(/^-+|-+$/g, '')) || 'view';
+
+    const existingPaths = new Set(
+      existingViews
+        .map(existingView => existingView?.path)
+        .filter(path => typeof path === 'string' && path.trim())
+    );
+
+    let path = basePath;
+    let suffix = 2;
+    while (existingPaths.has(path)) {
+      path = `${basePath}-${suffix}`;
+      suffix++;
+    }
 
     return {
       ...view,
@@ -81,8 +94,8 @@ class HAClient {
 
   async addViewToDashboard(view) {
     const config = await this.getLovelaceConfig();
-    const normalizedView = this.normalizeView(view);
     if (!config.views) config.views = [];
+    const normalizedView = this.normalizeView(view, config.views);
     config.views.push(normalizedView);
     await this.updateLovelaceConfig(config);
     return { success: true, message: `Vue "${normalizedView.title}" ajoutée au dashboard !` };
