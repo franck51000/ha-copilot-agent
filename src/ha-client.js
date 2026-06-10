@@ -57,12 +57,14 @@ class HAClient {
       return explicitPath.trim();
     }
 
-    return title
+    const generatedPath = title
       .toLowerCase()
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
       .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '') || 'view';
+      .replace(/^-+|-+$/g, '');
+
+    return generatedPath || 'view';
   }
 
   normalizeView(view, existingViews = []) {
