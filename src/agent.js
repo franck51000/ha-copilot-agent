@@ -1,5 +1,113 @@
 const OpenAI = require('openai');
 const { getSystemPrompt } = require('./prompts/system');
+const { HAClient } = require('./ha-client');
+
+const haClient = new HAClient();
+
+const HA_TOOLS = [
+  {
+    type: 'function',
+    function: {
+      name: 'get_ha_entities',
+      description: 'Récupère les entités disponibles dans Home Assistant par domaine (sensor, climate, camera, cover, switch, light, media_player, etc.)',
+      parameters: {
+        type: 'object',
+        properties: {
+          domain: {
+            type: 'string',
+            description: 'Le domaine HA : sensor, climate, camera, cover, switch, light, media_player, binary_sensor...'
+          }
+        }
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_lovelace_config',
+      description: 'Récupère la configuration actuelle du dashboard Lovelace de Home Assistant',
+      parameters: { type: 'object', properties: {} }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'add_view_to_dashboard',
+      description: 'Ajoute une nouvelle vue (onglet) au dashboard Lovelace existant sans supprimer les vues existantes',
+      parameters: {
+        type: 'object',
+        properties: {
+          view: {
+            type: 'object',
+            description: 'La configuration complète de la vue Lovelace (title, icon, cards[])'
+          }
+        },
+        required: ['view']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'update_full_dashboard',
+      description: 'Remplace complètement le dashboard Lovelace. Utiliser seulement si demandé explicitement.',
+      parameters: {
+        type: 'object',
+        properties: {
+          config: {
+            type: 'object',
+            description: 'La configuration Lovelace complète (title, views[])'
+          }
+        },
+        required: ['config']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'add_card_to_view',
+      description: 'Ajoute une carte à une vue existante du dashboard',
+      parameters: {
+        type: 'object',
+        properties: {
+          view_index: {
+            type: 'number',
+            description: 'Index de la vue (0 = première vue)'
+          },
+          card: {
+            type: 'object',
+            description: 'La configuration de la carte Lovelace'
+          }
+        },
+        required: ['view_index', 'card']
+      }
+    }
+  }
+];
+
+async function executeTool(toolName, args, onChunk) {
+  switch (toolName) {
+    case 'get_ha_entities':
+      return await haClient.getEntitiesByDomain(args.domain || '');
+
+    case 'get_lovelace_config':
+      return await haClient.getLovelaceConfig();
+
+    case 'add_view_to_dashboard':
+      return await haClient.addViewToDashboard(args.view);
+
+    case 'update_full_dashboard':
+      await haClient.updateLovelaceConfig(args.config);
+      return { success: true, message: 'Dashboard complet mis à jour dans Home Assistant !' };
+
+    case 'add_card_to_view':
+      return await haClient.addCardToView(args.view_index, args.card);
+
+    default:
+      throw new Error(`Outil inconnu: ${toolName}`);
+  }
+}
 
 async function buildHAResponse(messages, userToken, onChunk) {
   const openai = new OpenAI({
@@ -10,20 +118,73 @@ async function buildHAResponse(messages, userToken, onChunk) {
     }
   });
 
-  const systemMessage = { role: 'system', content: getSystemPrompt() };
+  const haConnected = haClient.isConfigured();
+  const systemMessage = {
+    role: 'system',
+    content: getSystemPrompt(haConnected)
+  };
 
-  const stream = await openai.chat.completions.create({
-    model: 'gpt-4o',
-    messages: [systemMessage, ...messages],
-    stream: true,
-    temperature: 0.3,
-    max_tokens: 4096
-  });
+  const tools = haConnected ? HA_TOOLS : [];
+  const conversationMessages = [systemMessage, ...messages];
 
-  for await (const chunk of stream) {
-    const content = chunk.choices[0]?.delta?.content || '';
-    if (content) {
-      await onChunk(content);
+  let iterations = 0;
+  const MAX_ITERATIONS = 6;
+
+  while (iterations < MAX_ITERATIONS) {
+    iterations++;
+
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: conversationMessages,
+      tools: tools.length > 0 ? tools : undefined,
+      tool_choice: tools.length > 0 ? 'auto' : undefined,
+      stream: false,
+      temperature: 0.2,
+      max_tokens: 4096
+    });
+
+    const choice = response.choices[0];
+    const msg = choice.message;
+
+    // Pas de tool call → réponse finale
+    if (!msg.tool_calls || msg.tool_calls.length === 0) {
+      await onChunk(msg.content || '');
+      break;
+    }
+
+    // Ajouter le message assistant avec tool_calls
+    conversationMessages.push(msg);
+
+    // Exécuter chaque tool call
+    for (const toolCall of msg.tool_calls) {
+      const toolName = toolCall.function.name;
+      const args = JSON.parse(toolCall.function.arguments || '{}');
+
+      const labels = {
+        get_ha_entities: '🔍 Récupération des entités HA',
+        get_lovelace_config: '📋 Lecture du dashboard actuel',
+        add_view_to_dashboard: '✨ Création de la vue dans HA',
+        update_full_dashboard: '🏠 Mise à jour du dashboard complet',
+        add_card_to_view: '🃏 Ajout de la carte dans HA'
+      };
+
+      await onChunk(`\n${labels[toolName] || `⚙️ ${toolName}`}...\n`);
+
+      try {
+        const result = await executeTool(toolName, args, onChunk);
+        conversationMessages.push({
+          role: 'tool',
+          tool_call_id: toolCall.id,
+          content: JSON.stringify(result)
+        });
+      } catch (err) {
+        conversationMessages.push({
+          role: 'tool',
+          tool_call_id: toolCall.id,
+          content: JSON.stringify({ error: err.message })
+        });
+        await onChunk(`\n❌ Erreur : ${err.message}\n`);
+      }
     }
   }
 }
