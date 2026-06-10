@@ -11,6 +11,7 @@ Dans GitHub Copilot Chat :
 @ha-dashboard-agent Carte contrôle portail Shelly
 @ha-dashboard-agent Monitoring NAS Synology
 @ha-dashboard-agent Crée une nouvelle vue vide appelée "Camera" avec l'icône mdi:camera
+@ha-dashboard-agent Crée un nouveau tableau de bord vide appelé "Camera Maison" avec l'icône mdi:camera
 ```
 
 ## Dépendances HACS

@@ -119,6 +119,68 @@ class HAClient {
     await this.updateLovelaceConfig(config);
     return { success: true, message: `Carte ajoutée à la vue "${config.views[viewIndex].title}" !` };
   }
+
+  // ── Standalone dashboards (HA 2021.7+) ────────────────────────────────────
+
+  async getLoveLaceDashboards() {
+    return this.request('GET', '/lovelace/dashboards');
+  }
+
+  generateDashboardUrlPath(title, explicitUrlPath) {
+    if (typeof explicitUrlPath === 'string' && explicitUrlPath.trim()) {
+      return explicitUrlPath.trim();
+    }
+
+    const generated = title
+      .toLowerCase()
+      .normalize('NFD')
+      // remove diacritical marks (accents) after NFD decomposition
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+
+    return generated || 'dashboard';
+  }
+
+  async createDashboard({ title, icon, url_path, require_admin = false, show_in_sidebar = true }) {
+    if (!title || typeof title !== 'string' || !title.trim()) {
+      throw new Error('Le titre du tableau de bord est obligatoire');
+    }
+
+    const urlPath = this.generateDashboardUrlPath(title.trim(), url_path);
+
+    const body = {
+      icon: icon || undefined,
+      title: title.trim(),
+      url_path: urlPath,
+      require_admin,
+      show_in_sidebar,
+      mode: 'storage'
+    };
+
+    const created = await this.request('POST', '/lovelace/dashboards', body);
+
+    // Initialise the new dashboard with an empty view so HA accepts it
+    const initialConfig = {
+      views: [
+        {
+          title: title.trim(),
+          icon: icon || undefined,
+          path: 'home',
+          cards: []
+        }
+      ]
+    };
+
+    await this.request('POST', `/lovelace/dashboards/${urlPath}/config`, initialConfig);
+
+    return {
+      success: true,
+      url_path: urlPath,
+      dashboard: created,
+      message: `Tableau de bord "${title.trim()}" créé avec succès (url_path: ${urlPath}) !`
+    };
+  }
 }
 
 module.exports = { HAClient };
