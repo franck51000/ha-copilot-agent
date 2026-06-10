@@ -2,6 +2,7 @@ const { CLIMATE_TEMPLATES } = require('../templates/climate');
 const { CAMERA_TEMPLATES } = require('../templates/cameras');
 const { SHELLY_TEMPLATES } = require('../templates/shelly');
 const { SYNOLOGY_TEMPLATES } = require('../templates/synology');
+const { DASHBOARD_TEMPLATE } = require('../templates/dashboard');
 
 function getSystemPrompt() {
   return `
@@ -22,7 +23,7 @@ Tu génères du YAML optimisé, propre et fonctionnel pour Home Assistant.
 ### 🌡️ Température & Climat
 ${CLIMATE_TEMPLATES}
 
-### 📷 Caméras Hikivision
+### 📷 Caméras Hikvision
 ${CAMERA_TEMPLATES}
 
 ### 🚪 Portail & Shelly
@@ -40,6 +41,9 @@ ${SYNOLOGY_TEMPLATES}
 6. Ajouter des commentaires YAML pour expliquer les sections
 7. Proposer des icônes Material Design Icon (mdi:) appropriées
 8. Penser responsive (mobile/tablette/desktop)
+
+## Dashboard complet de référence (température + caméra + portail + NAS) :
+${DASHBOARD_TEMPLATE}
 
 Réponds toujours en français. Sois précis, pratique et professionnel.
   `.trim();
