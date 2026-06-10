@@ -83,6 +83,47 @@ const HA_TOOLS = [
         required: ['view_index', 'card']
       }
     }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_lovelace_dashboards',
+      description: 'Retourne la liste de tous les tableaux de bord (dashboards) Lovelace existants dans Home Assistant',
+      parameters: { type: 'object', properties: {} }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'create_dashboard',
+      description: 'Crée un nouveau tableau de bord (dashboard) autonome dans Home Assistant avec un titre, une icône et une URL personnalisés. Utilise cet outil quand l\'utilisateur veut un NOUVEAU TABLEAU DE BORD séparé, pas juste un onglet dans le dashboard existant.',
+      parameters: {
+        type: 'object',
+        properties: {
+          title: {
+            type: 'string',
+            description: 'Le titre affiché du tableau de bord (ex: "Camera Maison")'
+          },
+          icon: {
+            type: 'string',
+            description: 'Icône Material Design Icon (ex: "mdi:camera")'
+          },
+          url_path: {
+            type: 'string',
+            description: 'Chemin URL du tableau de bord (ex: "camera-maison"). Généré automatiquement depuis le titre si absent.'
+          },
+          require_admin: {
+            type: 'boolean',
+            description: 'Restreindre l\'accès aux administrateurs. Par défaut false.'
+          },
+          show_in_sidebar: {
+            type: 'boolean',
+            description: 'Afficher dans la barre latérale. Par défaut true.'
+          }
+        },
+        required: ['title']
+      }
+    }
   }
 ];
 
@@ -103,6 +144,12 @@ async function executeTool(toolName, args, onChunk) {
 
     case 'add_card_to_view':
       return await haClient.addCardToView(args.view_index, args.card);
+
+    case 'get_lovelace_dashboards':
+      return await haClient.getLovelaceDashboards();
+
+    case 'create_dashboard':
+      return await haClient.createDashboard(args);
 
     default:
       throw new Error(`Outil inconnu: ${toolName}`);
@@ -165,7 +212,9 @@ async function buildHAResponse(messages, userToken, onChunk) {
         get_lovelace_config: '📋 Lecture du dashboard actuel',
         add_view_to_dashboard: '✨ Création de la vue dans HA',
         update_full_dashboard: '🏠 Mise à jour du dashboard complet',
-        add_card_to_view: '🃏 Ajout de la carte dans HA'
+        add_card_to_view: '🃏 Ajout de la carte dans HA',
+        get_lovelace_dashboards: '📋 Liste des tableaux de bord',
+        create_dashboard: '🆕 Création du tableau de bord dans HA'
       };
 
       await onChunk(`\n${labels[toolName] || `⚙️ ${toolName}`}...\n`);
