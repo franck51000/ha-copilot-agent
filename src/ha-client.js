@@ -52,12 +52,40 @@ class HAClient {
     }));
   }
 
+  normalizeView(view) {
+    if (!view || typeof view !== 'object') {
+      throw new Error('La vue fournie est invalide');
+    }
+
+    const title = typeof view.title === 'string' ? view.title.trim() : '';
+    if (!title) {
+      throw new Error('Le titre de la vue est obligatoire');
+    }
+
+    const path = typeof view.path === 'string' && view.path.trim()
+      ? view.path.trim()
+      : title
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '') || 'view';
+
+    return {
+      ...view,
+      title,
+      path,
+      cards: Array.isArray(view.cards) ? view.cards : []
+    };
+  }
+
   async addViewToDashboard(view) {
     const config = await this.getLovelaceConfig();
+    const normalizedView = this.normalizeView(view);
     if (!config.views) config.views = [];
-    config.views.push(view);
+    config.views.push(normalizedView);
     await this.updateLovelaceConfig(config);
-    return { success: true, message: `Vue "${view.title}" ajoutée au dashboard !` };
+    return { success: true, message: `Vue "${normalizedView.title}" ajoutée au dashboard !` };
   }
 
   async addCardToView(viewIndex, card) {
