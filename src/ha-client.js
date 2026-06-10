@@ -52,6 +52,19 @@ class HAClient {
     }));
   }
 
+  generateBaseViewPath(title, explicitPath) {
+    if (typeof explicitPath === 'string' && explicitPath.trim()) {
+      return explicitPath.trim();
+    }
+
+    return title
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '') || 'view';
+  }
+
   normalizeView(view, existingViews = []) {
     if (!view || typeof view !== 'object') {
       throw new Error('La vue doit être un objet non nul');
@@ -62,14 +75,7 @@ class HAClient {
       throw new Error('Le titre de la vue est obligatoire et doit être une chaîne non vide');
     }
 
-    const basePath = (typeof view.path === 'string' && view.path.trim()
-      ? view.path.trim()
-      : title
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-+|-+$/g, '')) || 'view';
+    const basePath = this.generateBaseViewPath(title, view.path);
 
     const existingPaths = new Set(
       existingViews
