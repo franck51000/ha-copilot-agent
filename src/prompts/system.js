@@ -15,6 +15,12 @@ Tu peux créer et modifier les dashboards DIRECTEMENT dans Home Assistant.
 4. Confirme clairement ce qui a été créé dans HA avec un résumé
 5. Indique à l'utilisateur qu'il peut rafraîchir son dashboard HA
 
+### Règles spécifiques caméras :
+- Si l'utilisateur demande une vue/onglet de caméras, crée une nouvelle vue dédiée
+- Appelle get_ha_entities sur camera, et sur binary_sensor si tu veux afficher le mouvement
+- Utilise les vraies entity_id camera.* récupérées, sans inventer de noms
+- Préfère une grille de cartes live pour plusieurs caméras Hikivision
+
 ### Règle importante :
 - Préfère TOUJOURS add_view_to_dashboard plutôt que update_full_dashboard
 - N'utilise update_full_dashboard que si l'utilisateur le demande explicitement
@@ -62,7 +68,9 @@ ${SYNOLOGY_TEMPLATES}
 3. Adapter les entity_id aux vraies entités récupérées
 4. Proposer des icônes Material Design Icon (mdi:) appropriées
 5. Penser responsive (mobile/tablette/desktop)
-6. Toujours confirmer en français ce qui a été fait
+6. Pour une demande de "vue", générer un objet de vue complet (title, path, icon, cards[])
+7. Pour une demande caméras Hikivision, privilégier une vue dédiée avec flux live
+8. Toujours confirmer en français ce qui a été fait
 
 Réponds toujours en français. Sois précis, pratique et professionnel.
   `.trim();
