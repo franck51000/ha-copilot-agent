@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const { verifyAndParseRequest, createAckEvent, createTextEvent, createDoneEvent, createErrorsEvent } = require('@copilot-extensions/preview-sdk');
 const { buildHAResponse } = require('./agent');
+const { HAClient } = require('./ha-client');
 
 const app = express();
 
@@ -16,7 +17,55 @@ app.use((req, res, next) => {
   });
 });
 
-app.get('/health', (req, res) => res.json({ status: 'ok', agent: 'HA Dashboard Copilot Agent' }));
+app.get('/health', async (req, res) => {
+  const ha = new HAClient();
+  let ha_connected = false;
+  let ha_error = null;
+  let ha_url = process.env.HA_URL || 'non défini';
+
+  if (ha.isConfigured()) {
+    try {
+      await ha.request('GET', '/');
+      ha_connected = true;
+    } catch (err) {
+      ha_error = err.message;
+    }
+  }
+
+  res.json({
+    status: 'ok',
+    agent: 'HA Dashboard Copilot Agent',
+    ha_url,
+    ha_configured: ha.isConfigured(),
+    ha_connected,
+    ha_error
+  });
+});
+
+// Endpoint de diagnostic HA
+app.get('/test-ha', async (req, res) => {
+  const ha = new HAClient();
+  if (!ha.isConfigured()) {
+    return res.json({ error: 'HA_URL ou HA_TOKEN manquant dans les variables Railway' });
+  }
+
+  try {
+    // Test 1 : ping API
+    const api = await ha.request('GET', '/');
+    // Test 2 : lecture config Lovelace
+    const lovelace = await ha.getLovelaceConfig();
+    res.json({
+      success: true,
+      ha_version: api.version || 'inconnue',
+      lovelace_mode: lovelace.mode || 'storage',
+      nb_views: lovelace.views ? lovelace.views.length : 0,
+      views: lovelace.views ? lovelace.views.map(v => ({ title: v.title, path: v.path })) : [],
+      raw_lovelace_sample: JSON.stringify(lovelace).substring(0, 500)
+    });
+  } catch (err) {
+    res.json({ success: false, error: err.message });
+  }
+});
 
 app.post('/', async (req, res) => {
   const signature = req.headers['github-public-key-signature'];
