@@ -122,7 +122,7 @@ class HAClient {
 
   // ── Standalone dashboards (HA 2021.7+) ────────────────────────────────────
 
-  async getLoveLaceDashboards() {
+  async getLovelaceDashboards() {
     return this.request('GET', '/lovelace/dashboards');
   }
 
@@ -160,7 +160,7 @@ class HAClient {
 
     const created = await this.request('POST', '/lovelace/dashboards', body);
 
-    // Initialise the new dashboard with an empty view so HA accepts it
+    // Initialize the new dashboard with an empty view so HA accepts it
     const initialConfig = {
       views: [
         {

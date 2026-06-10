@@ -146,7 +146,7 @@ async function executeTool(toolName, args, onChunk) {
       return await haClient.addCardToView(args.view_index, args.card);
 
     case 'get_lovelace_dashboards':
-      return await haClient.getLoveLaceDashboards();
+      return await haClient.getLovelaceDashboards();
 
     case 'create_dashboard':
       return await haClient.createDashboard(args);
