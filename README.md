@@ -7,7 +7,7 @@ GitHub Copilot Extension pour générer des dashboards Home Assistant modernes.
 Dans GitHub Copilot Chat :
 ```
 @ha-dashboard-agent Crée un dashboard avec mes capteurs de température
-@ha-dashboard-agent Crée une vue avec mes caméras Hikivision
+@ha-dashboard-agent Crée une vue avec mes caméras Hikvision
 @ha-dashboard-agent Carte contrôle portail Shelly
 @ha-dashboard-agent Monitoring NAS Synology
 ```
